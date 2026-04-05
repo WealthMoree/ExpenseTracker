@@ -138,33 +138,7 @@
 
     <div id="accountsList" class="accounts-grid"></div>
 
-    <!-- Transfer Between Accounts -->
-    <div class="sub-section">
-      <h3>Transfer Between Accounts</h3>
-      <div class="form-row">
-        <div class="form-group">
-          <label>From Account</label>
-          <select id="transferFrom"></select>
-        </div>
-        <div class="form-group">
-          <label>To Account</label>
-          <select id="transferTo"></select>
-        </div>
-        <div class="form-group">
-          <label>Amount (₹)</label>
-          <input type="number" id="transferAmount" placeholder="0.00" min="0" step="0.01" />
-        </div>
-        <div class="form-group">
-          <label>Date</label>
-          <input type="date" id="transferDate" />
-        </div>
-        <div class="form-group">
-          <label>Note</label>
-          <input type="text" id="transferNote" placeholder="Optional note" />
-        </div>
-      </div>
-      <button class="btn btn-secondary" onclick="doTransfer()">Transfer Funds</button>
-    </div>
+
   </section>
 
   <!-- ==================== INCOME ==================== -->
@@ -289,8 +263,20 @@
       <button class="tab-btn" data-type="EPF" onclick="filterAssets('EPF',this)">EPF</button>
       <button class="tab-btn" data-type="Gold" onclick="filterAssets('Gold',this)">Gold</button>
       <button class="tab-btn" data-type="Real Estate" onclick="filterAssets('Real Estate',this)">Real Estate</button>
-      <button class="tab-btn" data-type="FD/RD" onclick="filterAssets('FD/RD',this)">FD/RD</button>
+      <button class="tab-btn" data-type="FD" onclick="filterAssets('FD',this)">FD</button>
+      <button class="tab-btn" data-type="RD" onclick="filterAssets('RD',this)">RD</button>
       <button class="tab-btn" data-type="Other" onclick="filterAssets('Other',this)">Other</button>
+    </div>
+
+    <!-- Stock summary banner (shown when on Stocks tab) -->
+    <div id="stockSummaryBanner" style="display:none;" class="stock-summary-banner">
+      <div class="stock-summary-inner">
+        <div>
+          <div class="stock-summary-label">Total Stock Valuation</div>
+          <div class="stock-summary-value" id="stockTotalValuation">₹0</div>
+        </div>
+        <button class="btn btn-primary" onclick="openStockPage()">📊 View Holdings & Manage</button>
+      </div>
     </div>
 
     <div id="assetsList" class="assets-grid"></div>
@@ -569,7 +555,7 @@
 
 <!-- Add Asset Modal -->
 <div class="modal" id="addAssetModal">
-  <div class="modal-box">
+  <div class="modal-box large-modal">
     <div class="modal-header">
       <h3>Add Asset</h3>
       <button class="modal-close" onclick="closeModal('addAssetModal')">✕</button>
@@ -577,14 +563,15 @@
     <div class="modal-body">
       <div class="form-group">
         <label>Asset Type *</label>
-        <select id="assetType">
+        <select id="assetType" onchange="onAssetTypeChange()">
           <option value="Mutual Fund">Mutual Fund</option>
           <option value="Stocks">Stocks</option>
           <option value="PPF">PPF</option>
           <option value="EPF">EPF</option>
           <option value="Gold">Gold</option>
           <option value="Real Estate">Real Estate</option>
-          <option value="FD/RD">FD / RD</option>
+          <option value="FD">Fixed Deposit (FD)</option>
+          <option value="RD">Recurring Deposit (RD)</option>
           <option value="Crypto">Cryptocurrency</option>
           <option value="NPS">NPS</option>
           <option value="Other">Other</option>
@@ -594,6 +581,46 @@
         <label>Asset Name / Description *</label>
         <input type="text" id="assetName" placeholder="e.g. HDFC Top 100 Fund" />
       </div>
+
+      <!-- Mutual Fund specific -->
+      <div id="mfFields" style="display:none;">
+        <div class="form-group">
+          <label>Investment Type *</label>
+          <select id="mfType">
+            <option value="SIP">SIP (Systematic Investment Plan)</option>
+            <option value="Lump Sum">Lump Sum</option>
+          </select>
+        </div>
+        <div class="form-group" id="sipAmountGroup">
+          <label>SIP Monthly Amount (₹)</label>
+          <input type="number" id="mfSipAmount" placeholder="e.g. 5000" min="0" step="0.01" />
+        </div>
+      </div>
+
+      <!-- FD/RD specific -->
+      <div id="fdrdFields" style="display:none;">
+        <div class="form-group">
+          <label>Rate of Return (% p.a.) *</label>
+          <input type="number" id="fdRate" placeholder="e.g. 7.5" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Maturity Date</label>
+          <input type="date" id="fdMaturityDate" />
+        </div>
+      </div>
+
+      <!-- EPF/PPF specific -->
+      <div id="epfppfFields" style="display:none;">
+        <div class="form-group">
+          <label>Annual Rate of Return (%) *</label>
+          <input type="number" id="ppfRate" placeholder="e.g. 7.1 for PPF, 8.25 for EPF" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Interest Credit Date (financial year end — 31 March)</label>
+          <input type="date" id="ppfInterestDate" placeholder="Usually 31-Mar" />
+        </div>
+      </div>
+
       <div class="form-group">
         <label>Invested Amount (₹) *</label>
         <input type="number" id="assetInvested" placeholder="0.00" min="0" step="0.01" />
@@ -614,6 +641,104 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('addAssetModal')">Cancel</button>
       <button class="btn btn-primary" onclick="addAsset()">Save Asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- MF Ledger Modal -->
+<div class="modal" id="mfLedgerModal">
+  <div class="modal-box large-modal">
+    <div class="modal-header">
+      <h3 id="mfLedgerTitle">MF Ledger</h3>
+      <button class="modal-close" onclick="closeModal('mfLedgerModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mfLedgerAssetId" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" id="mfLedgerDate" />
+        </div>
+        <div class="form-group">
+          <label>Amount (₹) *</label>
+          <input type="number" id="mfLedgerAmount" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Units</label>
+          <input type="number" id="mfLedgerUnits" placeholder="Optional" min="0" step="0.001" />
+        </div>
+        <div class="form-group">
+          <label>NAV</label>
+          <input type="number" id="mfLedgerNav" placeholder="Optional" min="0" step="0.01" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <input type="text" id="mfLedgerNote" placeholder="Optional" />
+      </div>
+      <button class="btn btn-primary" onclick="addMfLedgerEntry()" style="margin-bottom:16px">+ Add Entry</button>
+      <div id="mfLedgerList" class="txn-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('mfLedgerModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stock Holdings Page Modal -->
+<div class="modal" id="stockPageModal">
+  <div class="modal-box large-modal" style="max-width:800px">
+    <div class="modal-header">
+      <h3>📊 Stock Holdings</h3>
+      <button class="modal-close" onclick="closeModal('stockPageModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="stock-valuation-banner" id="stockValuationBanner"></div>
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="form-group">
+          <label>Stock Symbol / Name *</label>
+          <input type="text" id="stockSymbol" placeholder="e.g. RELIANCE, INFY" />
+        </div>
+        <div class="form-group">
+          <label>Qty *</label>
+          <input type="number" id="stockQty" placeholder="100" min="0" step="1" />
+        </div>
+        <div class="form-group">
+          <label>Avg Buy Price (₹) *</label>
+          <input type="number" id="stockBuyPrice" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Current Price (₹)</label>
+          <input type="number" id="stockCurrentPrice" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Buy Date</label>
+          <input type="date" id="stockBuyDate" />
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addStockHolding()" style="margin-bottom:20px">+ Add Holding</button>
+      <div id="stockHoldingsList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('stockPageModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- PPF/EPF Ledger Modal -->
+<div class="modal" id="ppfLedgerModal">
+  <div class="modal-box large-modal">
+    <div class="modal-header">
+      <h3 id="ppfLedgerTitle">PPF / EPF Ledger</h3>
+      <button class="modal-close" onclick="closeModal('ppfLedgerModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ppfLedgerAssetId" />
+      <p class="text-muted" style="margin-bottom:14px;font-size:0.9rem;">Interest is credited annually on 31 March each year at the specified rate. The compounded value is shown below.</p>
+      <div id="ppfGrowthTable"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('ppfLedgerModal')">Close</button>
     </div>
   </div>
 </div>
