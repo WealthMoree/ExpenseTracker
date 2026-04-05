@@ -1122,6 +1122,100 @@ textarea { resize: vertical; min-height: 64px; }
 }
 .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
 
+/* ---- ASSET EXTRA STYLES ---- */
+.asset-extra-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.asset-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.badge-sip {
+  background: var(--blue-light);
+  color: var(--blue);
+}
+
+.badge-lumpsum {
+  background: var(--purple-light);
+  color: var(--purple);
+}
+
+.asset-extra-info {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.asset-fd-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 10px 0;
+  background: var(--bg-panel);
+  padding: 10px 12px;
+  border-radius: var(--border-radius-sm);
+}
+
+/* ---- STOCK SUMMARY BANNER ---- */
+.stock-summary-banner {
+  background: linear-gradient(135deg, var(--teal) 0%, var(--green-dark) 100%);
+  border-radius: var(--border-radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  color: #fff;
+}
+
+.stock-summary-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.stock-summary-label {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.stock-summary-value {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* ---- STOCK VALUATION BANNER (inside modal) ---- */
+.stock-val-grid {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  background: var(--green-light);
+  border-radius: var(--border-radius-sm);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--green);
+}
+
+.stock-val-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.stock-val-num {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
