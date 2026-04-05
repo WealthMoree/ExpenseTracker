@@ -379,8 +379,8 @@ function renderAccounts() {
       </div>`).join('');
   }
 
-  /* Populate transfer dropdowns */
-  populateAccountDropdowns(['transferFrom','transferTo','incAccount','expAccount','payLoanAccount','emiAccount']);
+  /* Populate account dropdowns for income/expense/loans */
+  populateAccountDropdowns(['incAccount','expAccount','payLoanAccount','emiAccount']);
 }
 
 function openEditAccount(id) {
@@ -706,6 +706,14 @@ async function deleteExpense(id) {
   });
 }
 
+/* ==================== ASSET TYPE FIELD VISIBILITY ==================== */
+function onAssetTypeChange() {
+  const type = document.getElementById('assetType').value;
+  document.getElementById('mfFields').style.display   = (type === 'Mutual Fund') ? 'block' : 'none';
+  document.getElementById('fdrdFields').style.display = (type === 'FD' || type === 'RD') ? 'block' : 'none';
+  document.getElementById('epfppfFields').style.display = (type === 'PPF' || type === 'EPF') ? 'block' : 'none';
+}
+
 /* ==================== ASSETS ==================== */
 async function addAsset() {
   const type         = document.getElementById('assetType').value;
@@ -720,11 +728,43 @@ async function addAsset() {
   if (isNaN(currentValue)) return showToast('Enter valid current value.', 'error');
 
   const asset = { id: uid(), type, name, invested, currentValue, date, notes };
+
+  /* Mutual Fund extras */
+  if (type === 'Mutual Fund') {
+    asset.mfType    = document.getElementById('mfType').value;
+    asset.sipAmount = parseFloat(document.getElementById('mfSipAmount').value) || 0;
+    asset.ledger    = asset.ledger || [];
+  }
+
+  /* FD / RD extras */
+  if (type === 'FD' || type === 'RD') {
+    const rate = parseFloat(document.getElementById('fdRate').value);
+    if (isNaN(rate) || rate <= 0) return showToast('Enter valid rate of return.', 'error');
+    asset.fdRate        = rate;
+    asset.fdMaturityDate = document.getElementById('fdMaturityDate').value;
+    /* Auto-calc maturity amount */
+    if (asset.fdMaturityDate && date) {
+      const yrs = (new Date(asset.fdMaturityDate) - new Date(date)) / (365.25 * 86400000);
+      asset.maturityAmount = invested * Math.pow(1 + rate / 100, yrs);
+    }
+  }
+
+  /* PPF / EPF extras */
+  if (type === 'PPF' || type === 'EPF') {
+    const rate = parseFloat(document.getElementById('ppfRate').value);
+    if (isNaN(rate) || rate <= 0) return showToast('Enter valid rate of return.', 'error');
+    asset.ppfRate         = rate;
+    asset.ppfInterestDate = document.getElementById('ppfInterestDate').value;
+  }
+
   state.assets.push(asset);
   await dbPut(STORES.assets, asset);
 
   closeModal('addAssetModal');
   clearForm('addAssetModal');
+  document.getElementById('mfFields').style.display    = 'none';
+  document.getElementById('fdrdFields').style.display  = 'none';
+  document.getElementById('epfppfFields').style.display = 'none';
   renderSection('assets');
   renderDashboard();
   showToast('Asset added!');
@@ -756,43 +796,129 @@ function renderAssetsSummary() {
 
 function renderAssetsList() {
   const el   = document.getElementById('assetsList');
+  const stockBanner = document.getElementById('stockSummaryBanner');
+
   const list = assetFilter === 'all' ? state.assets : state.assets.filter(a => a.type === assetFilter);
+
+  /* Stock banner */
+  if (assetFilter === 'Stocks') {
+    const stockAssets = state.assets.filter(a => a.type === 'Stocks');
+    const totalVal = stockAssets.reduce((s, a) => {
+      if (a.stockHoldings && a.stockHoldings.length) {
+        return s + a.stockHoldings.reduce((sv, h) => sv + (h.qty * (h.currentPrice || h.buyPrice)), 0);
+      }
+      return s + (a.currentValue || 0);
+    }, 0);
+    document.getElementById('stockTotalValuation').textContent = fmt(totalVal);
+    stockBanner.style.display = 'block';
+  } else {
+    stockBanner.style.display = 'none';
+  }
 
   if (!list.length) {
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">📈</div><p>No assets found.</p></div>';
     return;
   }
 
-  el.innerHTML = list.map(a => {
-    const gain    = a.currentValue - a.invested;
-    const gainPct = a.invested > 0 ? ((gain / a.invested) * 100).toFixed(1) : 0;
-    const gainCls = gain >= 0 ? 'asset-gain' : 'asset-loss';
-    return `
-      <div class="asset-card">
-        <span class="asset-type-badge">${escHtml(a.type)}</span>
-        <div class="asset-name">${escHtml(a.name)}</div>
-        <div class="asset-values">
-          <div class="asset-val-box">
-            <span class="asset-val-label">Invested</span>
-            <span class="asset-val-num">${fmt(a.invested)}</span>
-          </div>
-          <div class="asset-val-box">
-            <span class="asset-val-label">Current Value</span>
-            <span class="asset-val-num">${fmt(a.currentValue)}</span>
-          </div>
-          <div class="asset-val-box">
-            <span class="asset-val-label">Gain/Loss</span>
-            <span class="asset-val-num ${gainCls}">${gain >= 0 ? '+' : ''}${fmt(gain)} (${gainPct}%)</span>
-          </div>
-        </div>
-        ${a.date ? `<div class="text-muted" style="font-size:0.8rem;margin-top:8px;">Since ${fmtDate(a.date)}</div>` : ''}
-        ${a.notes ? `<div class="text-muted" style="font-size:0.82rem;margin-top:4px;">${escHtml(a.notes)}</div>` : ''}
-        <div class="asset-actions">
-          <button class="btn btn-sm btn-outline" onclick="openEditAsset('${a.id}')">✏️ Update Value</button>
-          <button class="btn btn-sm btn-danger"  onclick="deleteAsset('${a.id}')">🗑️</button>
-        </div>
+  el.innerHTML = list.map(a => renderAssetCard(a)).join('');
+}
+
+function renderAssetCard(a) {
+  const gain    = a.currentValue - a.invested;
+  const gainPct = a.invested > 0 ? ((gain / a.invested) * 100).toFixed(1) : 0;
+  const gainCls = gain >= 0 ? 'asset-gain' : 'asset-loss';
+
+  let extraHtml = '';
+
+  /* Mutual Fund extras */
+  if (a.type === 'Mutual Fund') {
+    const ledgerCount = (a.ledger || []).length;
+    extraHtml = `
+      <div class="asset-extra-row">
+        <span class="asset-badge ${a.mfType === 'SIP' ? 'badge-sip' : 'badge-lumpsum'}">${a.mfType || 'SIP'}</span>
+        ${a.mfType === 'SIP' && a.sipAmount ? `<span class="asset-extra-info">₹${a.sipAmount.toLocaleString('en-IN')}/mo SIP</span>` : ''}
+      </div>
+      <div class="asset-actions">
+        <button class="btn btn-sm btn-outline" onclick="openMfLedger('${a.id}')">📋 Ledger (${ledgerCount})</button>
+        <button class="btn btn-sm btn-outline" onclick="openEditAsset('${a.id}')">✏️ Update</button>
+        <button class="btn btn-sm btn-danger"  onclick="deleteAsset('${a.id}')">🗑️</button>
       </div>`;
-  }).join('');
+  }
+
+  /* FD / RD extras */
+  else if (a.type === 'FD' || a.type === 'RD') {
+    const matAmt = a.maturityAmount ? fmt(a.maturityAmount) : '—';
+    extraHtml = `
+      <div class="asset-fd-info">
+        <span>Rate: <strong>${a.fdRate || '—'}% p.a.</strong></span>
+        ${a.fdMaturityDate ? `<span>Matures: <strong class="text-green">${fmtDate(a.fdMaturityDate)}</strong></span>` : ''}
+        <span>Maturity Amount: <strong class="text-green">${matAmt}</strong></span>
+      </div>
+      <div class="asset-actions">
+        <button class="btn btn-sm btn-outline" onclick="openEditAsset('${a.id}')">✏️ Update</button>
+        <button class="btn btn-sm btn-danger"  onclick="deleteAsset('${a.id}')">🗑️</button>
+      </div>`;
+  }
+
+  /* PPF / EPF extras */
+  else if (a.type === 'PPF' || a.type === 'EPF') {
+    const projectedVal = calcPpfCurrentValue(a);
+    extraHtml = `
+      <div class="asset-fd-info">
+        <span>Rate: <strong>${a.ppfRate || '—'}% p.a.</strong></span>
+        <span>Projected Value: <strong class="text-green">${fmt(projectedVal)}</strong></span>
+      </div>
+      <div class="asset-actions">
+        <button class="btn btn-sm btn-outline" onclick="openPpfLedger('${a.id}')">📋 Growth Ledger</button>
+        <button class="btn btn-sm btn-outline" onclick="openEditAsset('${a.id}')">✏️ Update</button>
+        <button class="btn btn-sm btn-danger"  onclick="deleteAsset('${a.id}')">🗑️</button>
+      </div>`;
+  }
+
+  /* Stocks — shows "View Holdings" button */
+  else if (a.type === 'Stocks') {
+    const holdings = a.stockHoldings || [];
+    const curVal = holdings.length
+      ? holdings.reduce((s, h) => s + h.qty * (h.currentPrice || h.buyPrice), 0)
+      : a.currentValue;
+    extraHtml = `
+      <div class="asset-actions">
+        <button class="btn btn-sm btn-primary" onclick="openStockPage()">📊 View Holdings</button>
+        <button class="btn btn-sm btn-outline" onclick="openEditAsset('${a.id}')">✏️ Update</button>
+        <button class="btn btn-sm btn-danger"  onclick="deleteAsset('${a.id}')">🗑️</button>
+      </div>`;
+  }
+
+  else {
+    extraHtml = `
+      <div class="asset-actions">
+        <button class="btn btn-sm btn-outline" onclick="openEditAsset('${a.id}')">✏️ Update Value</button>
+        <button class="btn btn-sm btn-danger"  onclick="deleteAsset('${a.id}')">🗑️</button>
+      </div>`;
+  }
+
+  return `
+    <div class="asset-card">
+      <span class="asset-type-badge">${escHtml(a.type)}</span>
+      <div class="asset-name">${escHtml(a.name)}</div>
+      <div class="asset-values">
+        <div class="asset-val-box">
+          <span class="asset-val-label">Invested</span>
+          <span class="asset-val-num">${fmt(a.invested)}</span>
+        </div>
+        <div class="asset-val-box">
+          <span class="asset-val-label">Current Value</span>
+          <span class="asset-val-num">${fmt(a.currentValue)}</span>
+        </div>
+        <div class="asset-val-box">
+          <span class="asset-val-label">Gain/Loss</span>
+          <span class="asset-val-num ${gainCls}">${gain >= 0 ? '+' : ''}${fmt(gain)} (${gainPct}%)</span>
+        </div>
+      </div>
+      ${a.date ? `<div class="text-muted" style="font-size:0.8rem;margin-top:8px;">Since ${fmtDate(a.date)}</div>` : ''}
+      ${a.notes ? `<div class="text-muted" style="font-size:0.82rem;margin-top:4px;">${escHtml(a.notes)}</div>` : ''}
+      ${extraHtml}
+    </div>`;
 }
 
 function openEditAsset(id) {
@@ -829,6 +955,278 @@ async function deleteAsset(id) {
     renderDashboard();
     showToast('Asset deleted.', 'info');
   });
+}
+
+/* ==================== MUTUAL FUND LEDGER ==================== */
+function openMfLedger(id) {
+  const a = state.assets.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('mfLedgerAssetId').value = id;
+  document.getElementById('mfLedgerTitle').textContent = `📋 MF Ledger — ${a.name} (${a.mfType || 'SIP'})`;
+  document.getElementById('mfLedgerDate').value = today();
+  renderMfLedgerList(a);
+  openModal('mfLedgerModal');
+}
+
+async function addMfLedgerEntry() {
+  const id     = document.getElementById('mfLedgerAssetId').value;
+  const date   = document.getElementById('mfLedgerDate').value;
+  const amount = parseFloat(document.getElementById('mfLedgerAmount').value);
+  const units  = parseFloat(document.getElementById('mfLedgerUnits').value) || null;
+  const nav    = parseFloat(document.getElementById('mfLedgerNav').value) || null;
+  const note   = document.getElementById('mfLedgerNote').value.trim();
+
+  if (!date)              return showToast('Select date.', 'error');
+  if (!amount || amount <= 0) return showToast('Enter valid amount.', 'error');
+
+  const idx = state.assets.findIndex(a => a.id === id);
+  if (idx === -1) return;
+  if (!state.assets[idx].ledger) state.assets[idx].ledger = [];
+
+  const entry = { id: uid(), date, amount, units, nav, note };
+  state.assets[idx].ledger.push(entry);
+  state.assets[idx].invested = state.assets[idx].ledger.reduce((s, e) => s + e.amount, 0);
+
+  await dbPut(STORES.assets, state.assets[idx]);
+  document.getElementById('mfLedgerAmount').value = '';
+  document.getElementById('mfLedgerUnits').value  = '';
+  document.getElementById('mfLedgerNav').value    = '';
+  document.getElementById('mfLedgerNote').value   = '';
+  renderMfLedgerList(state.assets[idx]);
+  renderAssets();
+  showToast('Entry added!');
+}
+
+function renderMfLedgerList(a) {
+  const el = document.getElementById('mfLedgerList');
+  const ledger = (a.ledger || []).slice().sort((x, y) => new Date(y.date) - new Date(x.date));
+  if (!ledger.length) {
+    el.innerHTML = '<p class="text-muted" style="text-align:center;padding:16px;">No entries yet. Add your first transaction above.</p>';
+    return;
+  }
+  el.innerHTML = ledger.map(e => `
+    <div class="txn-item income-item">
+      <div class="txn-icon">${a.mfType === 'SIP' ? '🔁' : '💰'}</div>
+      <div class="txn-info">
+        <div class="txn-title">${a.mfType || 'SIP'} — ${e.note || 'Investment'}${e.units ? ` | ${e.units} units` : ''}${e.nav ? ` @ NAV ₹${e.nav}` : ''}</div>
+        <div class="txn-sub">${fmtDate(e.date)}</div>
+      </div>
+      <div class="txn-amount positive">${fmt(e.amount)}</div>
+      <button class="btn-icon del" onclick="deleteMfEntry('${a.id}','${e.id}')" title="Delete">🗑️</button>
+    </div>`).join('');
+}
+
+async function deleteMfEntry(assetId, entryId) {
+  const idx = state.assets.findIndex(a => a.id === assetId);
+  if (idx === -1) return;
+  state.assets[idx].ledger = (state.assets[idx].ledger || []).filter(e => e.id !== entryId);
+  state.assets[idx].invested = state.assets[idx].ledger.reduce((s, e) => s + e.amount, 0);
+  await dbPut(STORES.assets, state.assets[idx]);
+  renderMfLedgerList(state.assets[idx]);
+  renderAssets();
+  showToast('Entry deleted.', 'info');
+}
+
+/* ==================== STOCK HOLDINGS ==================== */
+function openStockPage() {
+  renderStockValuationBanner();
+  renderStockHoldingsList();
+  document.getElementById('stockBuyDate').value = today();
+  openModal('stockPageModal');
+}
+
+function renderStockValuationBanner() {
+  const allStockAssets = state.assets.filter(a => a.type === 'Stocks');
+  let totalInvested = 0, totalCurrent = 0;
+  allStockAssets.forEach(a => {
+    (a.stockHoldings || []).forEach(h => {
+      totalInvested += h.qty * h.buyPrice;
+      totalCurrent  += h.qty * (h.currentPrice || h.buyPrice);
+    });
+  });
+  const gain = totalCurrent - totalInvested;
+  const gainCls = gain >= 0 ? 'text-green' : 'text-red';
+  document.getElementById('stockValuationBanner').innerHTML = `
+    <div class="stock-val-grid">
+      <div><div class="stock-val-label">Total Invested</div><div class="stock-val-num">${fmt(totalInvested)}</div></div>
+      <div><div class="stock-val-label">Current Valuation</div><div class="stock-val-num text-green">${fmt(totalCurrent)}</div></div>
+      <div><div class="stock-val-label">Total Gain/Loss</div><div class="stock-val-num ${gainCls}">${gain >= 0 ? '+' : ''}${fmt(gain)}</div></div>
+    </div>`;
+}
+
+async function addStockHolding() {
+  const symbol       = document.getElementById('stockSymbol').value.trim().toUpperCase();
+  const qty          = parseFloat(document.getElementById('stockQty').value);
+  const buyPrice     = parseFloat(document.getElementById('stockBuyPrice').value);
+  const currentPrice = parseFloat(document.getElementById('stockCurrentPrice').value) || buyPrice;
+  const buyDate      = document.getElementById('stockBuyDate').value;
+
+  if (!symbol)          return showToast('Enter stock symbol.', 'error');
+  if (!qty || qty <= 0) return showToast('Enter valid quantity.', 'error');
+  if (!buyPrice || buyPrice <= 0) return showToast('Enter buy price.', 'error');
+
+  /* Find or create a Stocks asset */
+  let stockAsset = state.assets.find(a => a.type === 'Stocks');
+  if (!stockAsset) {
+    stockAsset = { id: uid(), type: 'Stocks', name: 'Stock Portfolio', invested: 0, currentValue: 0, date: today(), notes: '', stockHoldings: [] };
+    state.assets.push(stockAsset);
+  }
+  if (!stockAsset.stockHoldings) stockAsset.stockHoldings = [];
+
+  const holding = { id: uid(), symbol, qty, buyPrice, currentPrice, buyDate };
+  stockAsset.stockHoldings.push(holding);
+
+  /* Recalculate invested / current */
+  stockAsset.invested      = stockAsset.stockHoldings.reduce((s, h) => s + h.qty * h.buyPrice, 0);
+  stockAsset.currentValue  = stockAsset.stockHoldings.reduce((s, h) => s + h.qty * (h.currentPrice || h.buyPrice), 0);
+
+  await dbPut(STORES.assets, stockAsset);
+
+  ['stockSymbol','stockQty','stockBuyPrice','stockCurrentPrice'].forEach(id => { document.getElementById(id).value = ''; });
+  renderStockHoldingsList();
+  renderStockValuationBanner();
+  renderAssets();
+  showToast(`${symbol} added!`);
+}
+
+async function updateStockPrice(holdingId) {
+  const newPrice = parseFloat(prompt('Enter current market price (₹):'));
+  if (isNaN(newPrice) || newPrice <= 0) return;
+
+  const stockAsset = state.assets.find(a => a.type === 'Stocks');
+  if (!stockAsset) return;
+  const h = stockAsset.stockHoldings.find(x => x.id === holdingId);
+  if (!h) return;
+  h.currentPrice = newPrice;
+  stockAsset.currentValue = stockAsset.stockHoldings.reduce((s, h) => s + h.qty * (h.currentPrice || h.buyPrice), 0);
+  await dbPut(STORES.assets, stockAsset);
+  renderStockHoldingsList();
+  renderStockValuationBanner();
+  renderAssets();
+  showToast(`${h.symbol} price updated!`);
+}
+
+async function deleteStockHolding(holdingId) {
+  const stockAsset = state.assets.find(a => a.type === 'Stocks');
+  if (!stockAsset) return;
+  stockAsset.stockHoldings = stockAsset.stockHoldings.filter(h => h.id !== holdingId);
+  stockAsset.invested     = stockAsset.stockHoldings.reduce((s, h) => s + h.qty * h.buyPrice, 0);
+  stockAsset.currentValue = stockAsset.stockHoldings.reduce((s, h) => s + h.qty * (h.currentPrice || h.buyPrice), 0);
+  await dbPut(STORES.assets, stockAsset);
+  renderStockHoldingsList();
+  renderStockValuationBanner();
+  renderAssets();
+  showToast('Holding deleted.', 'info');
+}
+
+function renderStockHoldingsList() {
+  const el = document.getElementById('stockHoldingsList');
+  const stockAsset = state.assets.find(a => a.type === 'Stocks');
+  const holdings = stockAsset ? (stockAsset.stockHoldings || []) : [];
+
+  if (!holdings.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><p>No stock holdings yet. Add your first holding above.</p></div>';
+    return;
+  }
+
+  el.innerHTML = `<table class="report-table">
+    <thead><tr><th>Symbol</th><th>Qty</th><th>Avg Buy</th><th>CMP</th><th>Invested</th><th>Value</th><th>P&L</th><th>Actions</th></tr></thead>
+    <tbody>
+    ${holdings.map(h => {
+      const inv   = h.qty * h.buyPrice;
+      const cur   = h.qty * (h.currentPrice || h.buyPrice);
+      const pnl   = cur - inv;
+      const pnlPct = inv > 0 ? ((pnl / inv) * 100).toFixed(1) : 0;
+      const cls   = pnl >= 0 ? 'text-green' : 'text-red';
+      return `<tr>
+        <td><strong>${escHtml(h.symbol)}</strong>${h.buyDate ? `<div style="font-size:0.78rem;color:var(--text-muted)">${fmtDate(h.buyDate)}</div>` : ''}</td>
+        <td>${h.qty}</td>
+        <td>${fmt(h.buyPrice)}</td>
+        <td>${fmt(h.currentPrice || h.buyPrice)}</td>
+        <td>${fmt(inv)}</td>
+        <td class="text-green">${fmt(cur)}</td>
+        <td class="${cls}">${pnl >= 0 ? '+' : ''}${fmt(pnl)}<div style="font-size:0.78rem">${pnlPct}%</div></td>
+        <td>
+          <button class="btn btn-sm btn-outline" onclick="updateStockPrice('${h.id}')" style="margin-bottom:4px">📈 Update CMP</button>
+          <button class="btn btn-sm btn-danger"  onclick="deleteStockHolding('${h.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+/* ==================== PPF / EPF GROWTH LEDGER ==================== */
+function calcPpfCurrentValue(a) {
+  if (!a.ppfRate || !a.date) return a.currentValue;
+  const rate = a.ppfRate / 100;
+  const startDate = new Date(a.date + 'T00:00:00');
+  const now = new Date();
+  /* Count how many financial years have passed since investment date */
+  /* Financial year ends on 31 March */
+  let principal = a.invested;
+  let fy = startDate.getFullYear();
+  /* Move to first financial year end after start date */
+  let fyEndDate = new Date(fy, 2, 31); // March 31
+  if (fyEndDate <= startDate) { fy++; fyEndDate = new Date(fy, 2, 31); }
+
+  while (fyEndDate <= now) {
+    principal = principal * (1 + rate);
+    fyEndDate.setFullYear(fyEndDate.getFullYear() + 1);
+  }
+  return principal;
+}
+
+function openPpfLedger(id) {
+  const a = state.assets.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('ppfLedgerAssetId').value = id;
+  document.getElementById('ppfLedgerTitle').textContent = `📋 ${a.type} Growth Ledger — ${a.name}`;
+  renderPpfGrowthTable(a);
+  openModal('ppfLedgerModal');
+}
+
+function renderPpfGrowthTable(a) {
+  const el = document.getElementById('ppfGrowthTable');
+  if (!a.ppfRate || !a.date) {
+    el.innerHTML = '<p class="text-muted">No rate or start date set for this asset.</p>';
+    return;
+  }
+
+  const rate = a.ppfRate / 100;
+  const startDate = new Date(a.date + 'T00:00:00');
+  const now = new Date();
+
+  /* Project up to 30 years */
+  let principal = a.invested;
+  let fy = startDate.getFullYear();
+  let fyEndDate = new Date(fy, 2, 31);
+  if (fyEndDate <= startDate) { fy++; fyEndDate = new Date(fy, 2, 31); }
+
+  const rows = [];
+  for (let i = 0; i < 30; i++) {
+    const fyLabel    = `FY ${fyEndDate.getFullYear() - 1}–${String(fyEndDate.getFullYear()).slice(2)}`;
+    const interest   = principal * rate;
+    const newPrincipal = principal + interest;
+    const isPast     = fyEndDate <= now;
+    const isCurrent  = !isPast && rows.length === rows.filter(r => r.isPast).length;
+    rows.push({ fyLabel, openingBal: principal, interest, closingBal: newPrincipal, date: fyEndDate.toISOString().split('T')[0], isPast, isCurrent });
+    principal = newPrincipal;
+    fyEndDate = new Date(fyEndDate.getFullYear() + 1, 2, 31);
+    if (fyEndDate.getFullYear() > now.getFullYear() + 20) break;
+  }
+
+  el.innerHTML = `<table class="report-table">
+    <thead><tr><th>Financial Year</th><th>Opening Balance (₹)</th><th>Interest @ ${a.ppfRate}%</th><th>Closing Balance (₹)</th><th>Credit Date</th><th>Status</th></tr></thead>
+    <tbody>
+    ${rows.map(r => `<tr style="${r.isCurrent ? 'background:var(--gold-light);font-weight:700' : r.isPast ? 'color:var(--text-muted)' : ''}">
+      <td>${r.fyLabel}</td>
+      <td>${fmt(r.openingBal)}</td>
+      <td class="text-green">+${fmt(r.interest)}</td>
+      <td><strong>${fmt(r.closingBal)}</strong></td>
+      <td>${fmtDate(r.date)}</td>
+      <td>${r.isPast ? '✅ Credited' : r.isCurrent ? '🔔 Current FY' : '⏳ Future'}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
 }
 
 /* ==================== INSURANCE ==================== */
@@ -1683,7 +2081,7 @@ async function init() {
     new Date().toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'long', year:'numeric' });
 
   /* Default dates in modals */
-  ['incDate','expDate','transferDate','assetDate','insStartDate','loanStartDate','emiStartDate','payLoanDate']
+  ['incDate','expDate','assetDate','insStartDate','loanStartDate','emiStartDate','payLoanDate']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = today(); });
 
   try {
