@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinanceWise – Personal Finance Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="light-mode">
+
+<!-- ===== SIDEBAR NAVIGATION ===== -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="logo-icon">₹</span>
+    <span class="logo-text">FinanceWise</span>
+    <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">✕</button>
+  </div>
+  <ul class="nav-list">
+    <li><button class="nav-btn active" data-section="dashboard">🏠 Dashboard</button></li>
+    <li><button class="nav-btn" data-section="accounts">🏦 Bank Accounts</button></li>
+    <li><button class="nav-btn" data-section="income">💰 Income</button></li>
+    <li><button class="nav-btn" data-section="expenses">💸 Expenses</button></li>
+    <li><button class="nav-btn" data-section="assets">📈 Assets</button></li>
+    <li><button class="nav-btn" data-section="insurance">🛡️ Insurance</button></li>
+    <li><button class="nav-btn" data-section="loans">🏠 Loans & EMI</button></li>
+    <li><button class="nav-btn" data-section="reports">📊 Reports</button></li>
+    <li><button class="nav-btn" data-section="settings">⚙️ Settings</button></li>
+  </ul>
+  <div class="sidebar-footer">
+    <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">
+      <span id="themeIcon">🌙</span> <span id="themeLabel">Dark Mode</span>
+    </button>
+  </div>
+</nav>
+
+<!-- Overlay for mobile sidebar -->
+<div class="overlay" id="overlay"></div>
+
+<!-- ===== TOP BAR ===== -->
+<header class="topbar">
+  <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+  <h1 class="page-title" id="pageTitle">Dashboard</h1>
+  <div class="topbar-right">
+    <span class="current-date" id="currentDate"></span>
+  </div>
+</header>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main-content">
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <section id="dashboard" class="section active">
+    <div class="section-header">
+      <h2>Financial Overview</h2>
+      <p class="section-subtitle">Your complete money picture at a glance</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="cards-grid">
+      <div class="card card-green">
+        <div class="card-icon">💳</div>
+        <div class="card-info">
+          <p class="card-label">Total Bank Balance</p>
+          <p class="card-value" id="dashTotalBalance">₹0</p>
+        </div>
+      </div>
+      <div class="card card-blue">
+        <div class="card-icon">💰</div>
+        <div class="card-info">
+          <p class="card-label">This Month Income</p>
+          <p class="card-value" id="dashMonthIncome">₹0</p>
+        </div>
+      </div>
+      <div class="card card-red">
+        <div class="card-icon">💸</div>
+        <div class="card-info">
+          <p class="card-label">This Month Expenses</p>
+          <p class="card-value" id="dashMonthExpense">₹0</p>
+        </div>
+      </div>
+      <div class="card card-teal">
+        <div class="card-icon">📈</div>
+        <div class="card-info">
+          <p class="card-label">Total Assets Value</p>
+          <p class="card-value" id="dashTotalAssets">₹0</p>
+        </div>
+      </div>
+      <div class="card card-orange">
+        <div class="card-icon">🏠</div>
+        <div class="card-info">
+          <p class="card-label">Total Loan Outstanding</p>
+          <p class="card-value" id="dashTotalLoans">₹0</p>
+        </div>
+      </div>
+      <div class="card card-purple">
+        <div class="card-icon">🛡️</div>
+        <div class="card-info">
+          <p class="card-label">Active Insurance Policies</p>
+          <p class="card-value" id="dashInsuranceCount">0</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Net Worth Bar -->
+    <div class="net-worth-box">
+      <h3>Net Worth Estimate</h3>
+      <p class="net-worth-value" id="dashNetWorth">₹0</p>
+      <p class="net-worth-sub">= Bank Balance + Assets − Loans</p>
+    </div>
+
+    <div class="dashboard-bottom">
+      <!-- Account Balances -->
+      <div class="dash-panel">
+        <h3>Bank Accounts</h3>
+        <div id="dashAccountsList" class="dash-list"></div>
+      </div>
+
+      <!-- Upcoming Insurance Premiums -->
+      <div class="dash-panel">
+        <h3>Upcoming Premiums (Next 30 Days)</h3>
+        <div id="dashUpcomingPremiums" class="dash-list"></div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="dash-panel wide">
+        <h3>Recent Transactions</h3>
+        <div id="dashRecentTxn" class="dash-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== BANK ACCOUNTS ==================== -->
+  <section id="accounts" class="section">
+    <div class="section-header">
+      <h2>Bank Accounts</h2>
+      <button class="btn btn-primary" onclick="openModal('addAccountModal')">+ Add Account</button>
+    </div>
+
+    <div id="accountsList" class="accounts-grid"></div>
+
+    <!-- Transfer Between Accounts -->
+    <div class="sub-section">
+      <h3>Transfer Between Accounts</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>From Account</label>
+          <select id="transferFrom"></select>
+        </div>
+        <div class="form-group">
+          <label>To Account</label>
+          <select id="transferTo"></select>
+        </div>
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" id="transferAmount" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="transferDate" />
+        </div>
+        <div class="form-group">
+          <label>Note</label>
+          <input type="text" id="transferNote" placeholder="Optional note" />
+        </div>
+      </div>
+      <button class="btn btn-secondary" onclick="doTransfer()">Transfer Funds</button>
+    </div>
+  </section>
+
+  <!-- ==================== INCOME ==================== -->
+  <section id="income" class="section">
+    <div class="section-header">
+      <h2>Income Tracker</h2>
+      <button class="btn btn-primary" onclick="openModal('addIncomeModal')">+ Add Income</button>
+    </div>
+
+    <!-- Summary -->
+    <div class="income-summary">
+      <div class="summary-pill">
+        <span>This Month</span>
+        <strong id="incomeThisMonth">₹0</strong>
+      </div>
+      <div class="summary-pill">
+        <span>This Year</span>
+        <strong id="incomeThisYear">₹0</strong>
+      </div>
+      <div class="summary-pill">
+        <span>All Time</span>
+        <strong id="incomeAllTime">₹0</strong>
+      </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="filter-bar">
+      <select id="incomeFilterMonth">
+        <option value="">All Months</option>
+      </select>
+      <select id="incomeFilterYear">
+        <option value="">All Years</option>
+      </select>
+      <select id="incomeFilterSource">
+        <option value="">All Sources</option>
+      </select>
+      <button class="btn btn-sm" onclick="filterIncome()">Filter</button>
+      <button class="btn btn-sm btn-outline" onclick="clearIncomeFilter()">Clear</button>
+    </div>
+
+    <div id="incomeList" class="txn-list"></div>
+  </section>
+
+  <!-- ==================== EXPENSES ==================== -->
+  <section id="expenses" class="section">
+    <div class="section-header">
+      <h2>Expense Tracker</h2>
+      <button class="btn btn-primary" onclick="openModal('addExpenseModal')">+ Add Expense</button>
+    </div>
+
+    <!-- Summary -->
+    <div class="income-summary">
+      <div class="summary-pill red">
+        <span>This Month</span>
+        <strong id="expenseThisMonth">₹0</strong>
+      </div>
+      <div class="summary-pill red">
+        <span>This Year</span>
+        <strong id="expenseThisYear">₹0</strong>
+      </div>
+      <div class="summary-pill red">
+        <span>All Time</span>
+        <strong id="expenseAllTime">₹0</strong>
+      </div>
+    </div>
+
+    <!-- Category Summary -->
+    <div class="category-summary-box">
+      <h3>Category-wise Spending (This Month)</h3>
+      <div id="categorySummary" class="category-grid"></div>
+    </div>
+
+    <!-- Filter -->
+    <div class="filter-bar">
+      <select id="expenseFilterMonth">
+        <option value="">All Months</option>
+      </select>
+      <select id="expenseFilterYear">
+        <option value="">All Years</option>
+      </select>
+      <select id="expenseFilterCategory">
+        <option value="">All Categories</option>
+      </select>
+      <select id="expenseFilterAccount">
+        <option value="">All Accounts</option>
+      </select>
+      <button class="btn btn-sm" onclick="filterExpenses()">Filter</button>
+      <button class="btn btn-sm btn-outline" onclick="clearExpenseFilter()">Clear</button>
+    </div>
+
+    <div id="expenseList" class="txn-list"></div>
+  </section>
+
+  <!-- ==================== ASSETS ==================== -->
+  <section id="assets" class="section">
+    <div class="section-header">
+      <h2>Asset Tracker</h2>
+      <button class="btn btn-primary" onclick="openModal('addAssetModal')">+ Add Asset</button>
+    </div>
+
+    <div class="income-summary">
+      <div class="summary-pill">
+        <span>Total Invested</span>
+        <strong id="assetTotalInvested">₹0</strong>
+      </div>
+      <div class="summary-pill">
+        <span>Current Value</span>
+        <strong id="assetTotalCurrent">₹0</strong>
+      </div>
+      <div class="summary-pill" id="assetGainPill">
+        <span>Total Gain/Loss</span>
+        <strong id="assetTotalGain">₹0</strong>
+      </div>
+    </div>
+
+    <!-- Asset Type Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-type="all" onclick="filterAssets('all',this)">All</button>
+      <button class="tab-btn" data-type="Mutual Fund" onclick="filterAssets('Mutual Fund',this)">Mutual Funds</button>
+      <button class="tab-btn" data-type="Stocks" onclick="filterAssets('Stocks',this)">Stocks</button>
+      <button class="tab-btn" data-type="PPF" onclick="filterAssets('PPF',this)">PPF</button>
+      <button class="tab-btn" data-type="EPF" onclick="filterAssets('EPF',this)">EPF</button>
+      <button class="tab-btn" data-type="Gold" onclick="filterAssets('Gold',this)">Gold</button>
+      <button class="tab-btn" data-type="Real Estate" onclick="filterAssets('Real Estate',this)">Real Estate</button>
+      <button class="tab-btn" data-type="FD/RD" onclick="filterAssets('FD/RD',this)">FD/RD</button>
+      <button class="tab-btn" data-type="Other" onclick="filterAssets('Other',this)">Other</button>
+    </div>
+
+    <div id="assetsList" class="assets-grid"></div>
+  </section>
+
+  <!-- ==================== INSURANCE ==================== -->
+  <section id="insurance" class="section">
+    <div class="section-header">
+      <h2>Insurance Tracker</h2>
+      <button class="btn btn-primary" onclick="openModal('addInsuranceModal')">+ Add Policy</button>
+    </div>
+
+    <div class="income-summary">
+      <div class="summary-pill">
+        <span>Total Annual Premium</span>
+        <strong id="insTotalPremium">₹0</strong>
+      </div>
+      <div class="summary-pill">
+        <span>Active Policies</span>
+        <strong id="insActiveCount">0</strong>
+      </div>
+    </div>
+
+    <div id="insuranceList" class="insurance-grid"></div>
+  </section>
+
+  <!-- ==================== LOANS & EMI ==================== -->
+  <section id="loans" class="section">
+    <div class="section-header">
+      <h2>Loans & EMI</h2>
+    </div>
+
+    <!-- Loan Sub-tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchLoanTab('loansTab', this)">Loans</button>
+      <button class="tab-btn" onclick="switchLoanTab('emisTab', this)">EMIs</button>
+    </div>
+
+    <!-- LOANS TAB -->
+    <div id="loansTab" class="loan-tab-content">
+      <div class="sub-header">
+        <h3>Loan Accounts</h3>
+        <button class="btn btn-primary" onclick="openModal('addLoanModal')">+ Add Loan</button>
+      </div>
+      <div class="income-summary">
+        <div class="summary-pill red">
+          <span>Total Outstanding</span>
+          <strong id="loanTotalOutstanding">₹0</strong>
+        </div>
+        <div class="summary-pill">
+          <span>Total Paid</span>
+          <strong id="loanTotalPaid">₹0</strong>
+        </div>
+      </div>
+      <div id="loansList" class="loans-grid"></div>
+    </div>
+
+    <!-- EMIS TAB -->
+    <div id="emisTab" class="loan-tab-content" style="display:none;">
+      <div class="sub-header">
+        <h3>EMI Tracker</h3>
+        <button class="btn btn-primary" onclick="openModal('addEmiModal')">+ Add EMI</button>
+      </div>
+      <div id="emisList" class="loans-grid"></div>
+    </div>
+  </section>
+
+  <!-- ==================== REPORTS ==================== -->
+  <section id="reports" class="section">
+    <div class="section-header">
+      <h2>Reports & Analytics</h2>
+    </div>
+
+    <div class="report-filters">
+      <div class="form-group">
+        <label>Month</label>
+        <select id="reportMonth"></select>
+      </div>
+      <div class="form-group">
+        <label>Year</label>
+        <select id="reportYear"></select>
+      </div>
+      <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+      <button class="btn btn-outline" onclick="exportCSV()">Export CSV</button>
+    </div>
+
+    <div id="reportOutput" class="report-output"></div>
+  </section>
+
+  <!-- ==================== SETTINGS ==================== -->
+  <section id="settings" class="section">
+    <div class="section-header">
+      <h2>Settings</h2>
+    </div>
+
+    <div class="settings-grid">
+      <!-- Category Management -->
+      <div class="settings-card">
+        <h3>Expense Categories</h3>
+        <div id="categoryList" class="tag-list"></div>
+        <div class="form-row">
+          <input type="text" id="newCategoryInput" placeholder="New category name" />
+          <button class="btn btn-primary" onclick="addCategory()">Add</button>
+        </div>
+      </div>
+
+      <!-- Income Sources -->
+      <div class="settings-card">
+        <h3>Income Sources</h3>
+        <div id="sourceList" class="tag-list"></div>
+        <div class="form-row">
+          <input type="text" id="newSourceInput" placeholder="New source name" />
+          <button class="btn btn-primary" onclick="addSource()">Add</button>
+        </div>
+      </div>
+
+      <!-- Data Management -->
+      <div class="settings-card">
+        <h3>Data Management</h3>
+        <div class="settings-actions">
+          <button class="btn btn-outline" onclick="exportAllData()">📤 Export All Data (JSON)</button>
+          <label class="btn btn-outline">📥 Import Data (JSON)
+            <input type="file" accept=".json" id="importFile" style="display:none" onchange="importData(event)" />
+          </label>
+          <button class="btn btn-danger" onclick="confirmClearData()">🗑️ Clear All Data</button>
+        </div>
+      </div>
+
+      <!-- App Info -->
+      <div class="settings-card">
+        <h3>About FinanceWise</h3>
+        <p>Version 1.0.0 — Offline Personal Finance Tracker</p>
+        <p>All data is stored locally on your device. Nothing is sent to any server.</p>
+        <p>Works fully without internet connection.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Add Account Modal -->
+<div class="modal" id="addAccountModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Bank Account</h3>
+      <button class="modal-close" onclick="closeModal('addAccountModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Bank Name *</label>
+        <input type="text" id="accBankName" placeholder="e.g. SBI, HDFC, ICICI" />
+      </div>
+      <div class="form-group">
+        <label>Account Type *</label>
+        <select id="accType">
+          <option value="Savings">Savings Account</option>
+          <option value="Current">Current Account</option>
+          <option value="Salary">Salary Account</option>
+          <option value="FD">Fixed Deposit</option>
+          <option value="RD">Recurring Deposit</option>
+          <option value="Wallet">Digital Wallet</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Current Balance (₹) *</label>
+        <input type="number" id="accBalance" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Account Number (last 4 digits, optional)</label>
+        <input type="text" id="accNumber" placeholder="e.g. 4521" maxlength="4" />
+      </div>
+      <div class="form-group">
+        <label>Color Label</label>
+        <select id="accColor">
+          <option value="green">Green</option>
+          <option value="blue">Blue</option>
+          <option value="teal">Teal</option>
+          <option value="orange">Orange</option>
+          <option value="purple">Purple</option>
+          <option value="red">Red</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addAccountModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addAccount()">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Income Modal -->
+<div class="modal" id="addIncomeModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Income Entry</h3>
+      <button class="modal-close" onclick="closeModal('addIncomeModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Amount (₹) *</label>
+        <input type="number" id="incAmount" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Source *</label>
+        <select id="incSource"></select>
+      </div>
+      <div class="form-group">
+        <label>Credit To Account *</label>
+        <select id="incAccount"></select>
+      </div>
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="incDate" />
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <textarea id="incNote" placeholder="Optional description..." rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addIncomeModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addIncome()">Save Income</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div class="modal" id="addExpenseModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Expense</h3>
+      <button class="modal-close" onclick="closeModal('addExpenseModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Amount (₹) *</label>
+        <input type="number" id="expAmount" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Category *</label>
+        <select id="expCategory"></select>
+      </div>
+      <div class="form-group">
+        <label>Debit From Account *</label>
+        <select id="expAccount"></select>
+      </div>
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="expDate" />
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <textarea id="expNote" placeholder="Optional description..." rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Payment Mode</label>
+        <select id="expPayMode">
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="Card">Debit/Credit Card</option>
+          <option value="Net Banking">Net Banking</option>
+          <option value="Cheque">Cheque</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addExpenseModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addExpense()">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Asset Modal -->
+<div class="modal" id="addAssetModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Asset</h3>
+      <button class="modal-close" onclick="closeModal('addAssetModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Asset Type *</label>
+        <select id="assetType">
+          <option value="Mutual Fund">Mutual Fund</option>
+          <option value="Stocks">Stocks</option>
+          <option value="PPF">PPF</option>
+          <option value="EPF">EPF</option>
+          <option value="Gold">Gold</option>
+          <option value="Real Estate">Real Estate</option>
+          <option value="FD/RD">FD / RD</option>
+          <option value="Crypto">Cryptocurrency</option>
+          <option value="NPS">NPS</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Asset Name / Description *</label>
+        <input type="text" id="assetName" placeholder="e.g. HDFC Top 100 Fund" />
+      </div>
+      <div class="form-group">
+        <label>Invested Amount (₹) *</label>
+        <input type="number" id="assetInvested" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Current Value (₹) *</label>
+        <input type="number" id="assetCurrent" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Start / Purchase Date</label>
+        <input type="date" id="assetDate" />
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="assetNotes" placeholder="Fund house, broker, maturity date..." rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addAssetModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addAsset()">Save Asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Insurance Modal -->
+<div class="modal" id="addInsuranceModal">
+  <div class="modal-box large-modal">
+    <div class="modal-header">
+      <h3>Add Insurance Policy</h3>
+      <button class="modal-close" onclick="closeModal('addInsuranceModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Policy Name *</label>
+        <input type="text" id="insName" placeholder="e.g. LIC Jeevan Anand" />
+      </div>
+      <div class="form-group">
+        <label>Insurance Type *</label>
+        <select id="insType">
+          <option value="Life">Life Insurance</option>
+          <option value="Health">Health Insurance</option>
+          <option value="Car">Car Insurance</option>
+          <option value="Bike">Bike Insurance</option>
+          <option value="ULIP">ULIP</option>
+          <option value="Term">Term Plan</option>
+          <option value="Endowment">Endowment</option>
+          <option value="Home">Home Insurance</option>
+          <option value="Travel">Travel Insurance</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Insurance Company</label>
+        <input type="text" id="insCompany" placeholder="e.g. LIC, HDFC Life, Star Health" />
+      </div>
+      <div class="form-group">
+        <label>Sum Assured / Coverage (₹)</label>
+        <input type="number" id="insSumAssured" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Premium Amount (₹) *</label>
+        <input type="number" id="insPremium" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Payment Frequency *</label>
+        <select id="insFrequency">
+          <option value="Monthly">Monthly</option>
+          <option value="Quarterly">Quarterly</option>
+          <option value="Half-Yearly">Half-Yearly</option>
+          <option value="Yearly">Yearly</option>
+          <option value="Single">Single Premium</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Policy Start Date *</label>
+        <input type="date" id="insStartDate" />
+      </div>
+      <div class="form-group">
+        <label>Premium Paying Term (Years)</label>
+        <input type="number" id="insPayingYears" placeholder="e.g. 20" min="1" />
+      </div>
+      <div class="form-group">
+        <label>Lock-in / Waiting Period (Years)</label>
+        <input type="number" id="insLockIn" placeholder="e.g. 2" min="0" />
+      </div>
+      <div class="form-group">
+        <label>Policy Term / Maturity (Years)</label>
+        <input type="number" id="insPolicyTerm" placeholder="e.g. 25" min="1" />
+      </div>
+      <div class="form-group">
+        <label>Maturity Payout Type</label>
+        <select id="insPayoutType">
+          <option value="Lump Sum">Lump Sum</option>
+          <option value="Monthly">Monthly Pension/Annuity</option>
+          <option value="Annual">Annual Payout</option>
+          <option value="None">No Maturity (Term Plan)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Maturity Payout Amount (₹)</label>
+        <input type="number" id="insMaturityAmount" placeholder="Expected maturity value" min="0" />
+      </div>
+      <div class="form-group">
+        <label>Nominee Name</label>
+        <input type="text" id="insNominee" placeholder="e.g. Ramesh Kumar" />
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="insNotes" placeholder="Policy number, agent contact..." rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addInsuranceModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addInsurance()">Save Policy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Loan Modal -->
+<div class="modal" id="addLoanModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Loan</h3>
+      <button class="modal-close" onclick="closeModal('addLoanModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Loan Name / Description *</label>
+        <input type="text" id="loanName" placeholder="e.g. Home Loan - SBI" />
+      </div>
+      <div class="form-group">
+        <label>Loan Type *</label>
+        <select id="loanType">
+          <option value="Home">Home Loan</option>
+          <option value="Car">Car Loan</option>
+          <option value="Personal">Personal Loan</option>
+          <option value="Education">Education Loan</option>
+          <option value="Business">Business Loan</option>
+          <option value="Credit Card">Credit Card Loan</option>
+          <option value="Gold">Gold Loan</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Total Loan Amount (₹) *</label>
+        <input type="number" id="loanAmount" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Annual Interest Rate (%) *</label>
+        <input type="number" id="loanRate" placeholder="e.g. 8.5" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Loan Duration (Months) *</label>
+        <input type="number" id="loanDuration" placeholder="e.g. 240 for 20 years" min="1" />
+      </div>
+      <div class="form-group">
+        <label>Start Date *</label>
+        <input type="date" id="loanStartDate" />
+      </div>
+      <div class="form-group">
+        <label>Lender / Bank Name</label>
+        <input type="text" id="loanLender" placeholder="e.g. HDFC Bank" />
+      </div>
+      <div class="form-group">
+        <label>Amount Already Paid (₹)</label>
+        <input type="number" id="loanPaid" placeholder="0.00" min="0" step="0.01" value="0" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addLoanModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addLoan()">Save Loan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add EMI Modal -->
+<div class="modal" id="addEmiModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add EMI</h3>
+      <button class="modal-close" onclick="closeModal('addEmiModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>EMI Description *</label>
+        <input type="text" id="emiName" placeholder="e.g. TV EMI - Bajaj Finance" />
+      </div>
+      <div class="form-group">
+        <label>EMI Amount per Month (₹) *</label>
+        <input type="number" id="emiAmount" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Total EMIs</label>
+        <input type="number" id="emiTotal" placeholder="e.g. 24" min="1" />
+      </div>
+      <div class="form-group">
+        <label>EMIs Already Paid</label>
+        <input type="number" id="emiPaid" placeholder="e.g. 6" min="0" value="0" />
+      </div>
+      <div class="form-group">
+        <label>Start Date *</label>
+        <input type="date" id="emiStartDate" />
+      </div>
+      <div class="form-group">
+        <label>Debit Account</label>
+        <select id="emiAccount"></select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <input type="text" id="emiNotes" placeholder="Optional" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addEmiModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addEmi()">Save EMI</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Asset Modal -->
+<div class="modal" id="editAssetModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Update Asset Value</h3>
+      <button class="modal-close" onclick="closeModal('editAssetModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editAssetId" />
+      <div class="form-group">
+        <label>Current Value (₹)</label>
+        <input type="number" id="editAssetValue" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="editAssetNotes" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('editAssetModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="updateAsset()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record Loan Payment Modal -->
+<div class="modal" id="loanPaymentModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Record Loan Payment</h3>
+      <button class="modal-close" onclick="closeModal('loanPaymentModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="payLoanId" />
+      <div class="form-group">
+        <label>Payment Amount (₹)</label>
+        <input type="number" id="payLoanAmount" placeholder="EMI amount" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Payment Date</label>
+        <input type="date" id="payLoanDate" />
+      </div>
+      <div class="form-group">
+        <label>Debit from Account</label>
+        <select id="payLoanAccount"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('loanPaymentModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="recordLoanPayment()">Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Account Modal -->
+<div class="modal" id="editAccountModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Edit Account</h3>
+      <button class="modal-close" onclick="closeModal('editAccountModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editAccId" />
+      <div class="form-group">
+        <label>Bank Name</label>
+        <input type="text" id="editAccBankName" />
+      </div>
+      <div class="form-group">
+        <label>Account Type</label>
+        <select id="editAccType">
+          <option value="Savings">Savings Account</option>
+          <option value="Current">Current Account</option>
+          <option value="Salary">Salary Account</option>
+          <option value="FD">Fixed Deposit</option>
+          <option value="RD">Recurring Deposit</option>
+          <option value="Wallet">Digital Wallet</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Current Balance (₹)</label>
+        <input type="number" id="editAccBalance" step="0.01" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('editAccountModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditAccount()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
+<!-- Confirm Dialog -->
+<div class="modal" id="confirmModal">
+  <div class="modal-box confirm-box">
+    <div class="modal-header">
+      <h3 id="confirmTitle">Confirm Action</h3>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMessage"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
